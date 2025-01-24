@@ -6,7 +6,14 @@ import (
 )
 
 func main() {
-	tr := p2p.NewTCPTransport(":3000") //Creates a new TCP trnsport with listen address "3000"
+
+	tcpOpts := p2p.TCPTransportOpts{
+		ListenAddr:    ":3000",
+		HandShakeFunc: p2p.NOPHandShakeFunc,
+		Decoder:       p2p.DefaultDecoder{},
+	}
+
+	tr := p2p.NewTCPTransport(tcpOpts) //Creates a new TCP trnsport with listen address "3000"
 	if err := tr.ListenAndAccept(); err != nil {
 		log.Fatal(err) //If any error occurs log it and terminate the program
 	}

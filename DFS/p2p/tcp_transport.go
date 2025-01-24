@@ -24,11 +24,15 @@ func NewTCPPeer(conn net.Conn, outbound bool) *TCPPeer {
 	}
 }
 
+type TCPTransportOpts struct {
+	ListenAddr    string //The address and the port the transport will listen to
+	HandShakeFunc HandShakeFunc
+	Decoder       Decoder
+}
+
 type TCPTransport struct {
-	listenAddress string       //The address and the port the transport will listen to
-	listener      net.Listener // This is the network listener that waits for incoming TCP connections
-	handShakeFunc handShakeFunc
-	decoder       Decoder
+	TCPTransportOpts
+	listener net.Listener // This is the network listener that waits for incoming TCP connections
 
 	mu    sync.RWMutex
 	peers map[net.Addr]Peer //A map to store peers identified by thier network address
@@ -37,10 +41,9 @@ type TCPTransport struct {
 func NOPHandshakeFunc(any) error { return nil }
 
 // This constructor initializes a new TCPTransport instance with the listening address
-func NewTCPTransport(listenAddr string) *TCPTransport {
+func NewTCPTransport(opts TCPTransportOpts) *TCPTransport {
 	return &TCPTransport{
-		handShakeFunc: NOPHandShakeFunc,
-		listenAddress: listenAddr,
+		TCPTransportOpts: opts,
 	}
 }
 
@@ -49,7 +52,7 @@ func (t *TCPTransport) ListenAndAccept() error {
 	var err error
 
 	//net.Listen("tcp", t.listenAddress) called to bind the address and listen for incoming connections
-	t.listener, err = net.Listen("tcp", t.listenAddress)
+	t.listener, err = net.Listen("tcp", t.ListenAddr)
 	if err != nil {
 		return err
 	}
@@ -64,7 +67,7 @@ func (t *TCPTransport) startAcceptLoop() {
 	for {
 		conn, err := t.listener.Accept() //Called to wait for incomming connections
 		if err != nil {
-			fmt.Printf("TCP accept error: %s\n", err) //if error occurs prints the following message
+			fmt.Printf("TCP accept error: %s\n", conn) //if error occurs prints the following message
 		}
 		go t.handleConn(conn) //Each connection is handled in a new goroutine
 	}
@@ -77,15 +80,20 @@ type Temp struct{}
 func (t *TCPTransport) handleConn(conn net.Conn) {
 	peer := NewTCPPeer(conn, true)
 
-	if err := t.shakeHands(conn); err != nil {
+	if err := t.HandShakeFunc(peer); err != nil {
+		conn.Close()
+		fmt.Printf("TCP handshake error: %s\n", err)
+		return
 
 	}
 
 	//Read loop
-	msg := &Temp{}
+	msg := &Message{}
 	for {
-		t.decoder.Decode(conn, msg)
+		if err := t.Decoder.Decode(conn, msg); err != nil {
+			fmt.Printf("TCP error: %s\n", err)
+			continue
+		}
+		fmt.Printf("message: %+v\n", msg)
 	}
-
-	fmt.Printf("New incomming connection %+v\n", peer)
 }
