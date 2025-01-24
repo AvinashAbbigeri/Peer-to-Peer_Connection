@@ -27,14 +27,19 @@ func NewTCPPeer(conn net.Conn, outbound bool) *TCPPeer {
 type TCPTransport struct {
 	listenAddress string       //The address and the port the transport will listen to
 	listener      net.Listener // This is the network listener that waits for incoming TCP connections
+	handShakeFunc handShakeFunc
+	decoder       Decoder
 
 	mu    sync.RWMutex
 	peers map[net.Addr]Peer //A map to store peers identified by thier network address
 }
 
+func NOPHandshakeFunc(any) error { return nil }
+
 // This constructor initializes a new TCPTransport instance with the listening address
 func NewTCPTransport(listenAddr string) *TCPTransport {
 	return &TCPTransport{
+		handShakeFunc: NOPHandShakeFunc,
 		listenAddress: listenAddr,
 	}
 }
@@ -65,9 +70,22 @@ func (t *TCPTransport) startAcceptLoop() {
 	}
 }
 
+type Temp struct{}
+
 // This method is called when a new connection is accepted
 // Creates a new TCPPeer instance to represent the peer and the logs the new connection
 func (t *TCPTransport) handleConn(conn net.Conn) {
 	peer := NewTCPPeer(conn, true)
+
+	if err := t.shakeHands(conn); err != nil {
+
+	}
+
+	//Read loop
+	msg := &Temp{}
+	for {
+		t.decoder.Decode(conn, msg)
+	}
+
 	fmt.Printf("New incomming connection %+v\n", peer)
 }
