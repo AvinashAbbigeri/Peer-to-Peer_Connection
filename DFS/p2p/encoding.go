@@ -2,20 +2,22 @@ package p2p
 
 import (
 	"encoding/gob"
-	"fmt"
 	"io"
 )
 
+// Interface for decoding messages
 type Decoder interface {
 	Decode(io.Reader, *Message) error
 }
 
+// Decodes a message serialized with encoding/gob
 type GOBDecoder struct{}
 
 func (doc GOBDecoder) Decode(r io.Reader, msg *Message) error {
 	return gob.NewDecoder(r).Decode(msg)
 }
 
+// Reads raw bytes and stores them in the message's Payload field
 type DefaultDecoder struct{}
 
 func (doc DefaultDecoder) Decode(r io.Reader, msg *Message) error {
@@ -25,7 +27,7 @@ func (doc DefaultDecoder) Decode(r io.Reader, msg *Message) error {
 		return err
 	}
 
-	fmt.Println(string(buf[:n]))
+	msg.Payload = buf[:n]
 
 	return nil
 }

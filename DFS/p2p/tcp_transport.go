@@ -25,19 +25,21 @@ func NewTCPPeer(conn net.Conn, outbound bool) *TCPPeer {
 }
 
 type TCPTransportOpts struct {
-	ListenAddr    string //The address and the port the transport will listen to
-	HandShakeFunc HandShakeFunc
-	Decoder       Decoder
+	ListenAddr    string        //The address and the port the transport will listen to
+	HandShakeFunc HandShakeFunc //A callback function to handle the handshake
+	Decoder       Decoder       //A function to decode the incoming data from the peer
 }
 
 type TCPTransport struct {
-	TCPTransportOpts
-	listener net.Listener // This is the network listener that waits for incoming TCP connections
+	TCPTransportOpts              // Embedded struct with the transport options
+	listener         net.Listener // This is the network listener that waits for incoming TCP connections
 
-	mu    sync.RWMutex
+	mu    sync.RWMutex      //Mutex to ensure thread safe operation on the shared peer map
 	peers map[net.Addr]Peer //A map to store peers identified by thier network address
 }
 
+// A no-op (no operation) handshake function that always succeeds
+// This is the default handshake if no custom logic is provided.
 func NOPHandshakeFunc(any) error { return nil }
 
 // This constructor initializes a new TCPTransport instance with the listening address
@@ -81,7 +83,7 @@ func (t *TCPTransport) handleConn(conn net.Conn) {
 	peer := NewTCPPeer(conn, true)
 
 	if err := t.HandShakeFunc(peer); err != nil {
-		conn.Close()
+		conn.Close() //If handshake fails, close the connection
 		fmt.Printf("TCP handshake error: %s\n", err)
 		return
 
