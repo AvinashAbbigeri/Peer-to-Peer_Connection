@@ -1,2 +1,2 @@
-# Distributed-File-System
-Distributed File System using Golang
+# Peer-to-Peer
+Peer to Peer connection implementation using Golang
